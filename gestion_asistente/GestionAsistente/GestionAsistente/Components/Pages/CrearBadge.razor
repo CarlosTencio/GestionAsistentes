@@ -1,0 +1,273 @@
+﻿@page "/crear-badge"
+@using GestionAsistente.BlazorUI.Components.Layout
+@using GestionAsistente.BlazorUI.Controlador
+@using GestionAsistente.Entidades
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+
+@rendermode InteractiveServer
+@layout LayoutPrincipal
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<h3 style="text-align: center;" >Crear Badge</h3>
+
+<div class="row justify-content-center">
+    <div class="col-md-4">
+    <EditForm Model="badge" OnValidSubmit="RegistrarBadge" FormName="crearBadgeForm">
+
+            <hr />
+            <div class=" mb-3">
+            <label for="horaInicio">Hora de Inicio</label>
+            <InputSelect id="horaInicio" class="form-select" @bind-Value="horaInicio" @oninput="OnHorarioChanged">
+                <option value="">Seleccione la hora de inicio</option>
+                @foreach (var hora in horasDelDiaInicio)
+                {
+                    <option value="@hora">@hora</option>
+                }
+            </InputSelect>
+        </div>
+
+            <div class="mb-3">
+            <label for="horaFinal">Hora de Final</label>
+            <InputSelect id="horaFinal" class="form-select" @bind-Value="horaFinal">
+                <option value="">Seleccione la hora de finalización</option>
+                @foreach (var hora in horasDelDiaFinal)
+                {
+                    <option value="@hora">@hora</option>
+                }
+            </InputSelect>
+        </div>
+
+            <div class="mb-3">
+            <label for="unidadID" class="form-label">Unidad</label>
+            <InputSelect id="unidadID" class="form-control" @bind-Value="badge.UnidadID">
+                <option value="">Sin unidad</option>
+                @foreach (var unidad in listaUnidades)
+                {
+                    <option value="@unidad.UnidadID">@unidad.Nombre</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label for="cantidadACrear" class="form-label">Cantidad a crear</label>
+            <InputNumber id="cantidadACrear" class="form-control" @bind-Value="cantidadACrear" />
+        </div>
+
+        <div style="text-align:center">
+            <button type="submit" class="btn btn-primary" disabled="@EsFormularioInvalido()">Registrar</button>
+        </div>
+</EditForm>
+    </div>
+</div>
+@if (mensajeExito != null)
+{
+    <div id="ModalsConfirmacion" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación</h5>
+                    <button type="button" class="close" @onclick="CerrarModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeExito</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+
+
+    private string nombreUsuarioAutenticado;
+
+
+    bool exito = false;
+    string mensaje = "";
+
+    BadgeControlador badgeControlador = new BadgeControlador();
+    UnidadControlador unidadControlador = new UnidadControlador();
+    string mensajeExito;
+    string mensajeError;
+    string horaInicio, horaFinal = "", horario;
+    string simboloRangoHoras = "a";
+    int cantidadACrear = 1;
+    List<Unidad> listaUnidades = new List<Unidad>();
+
+    private ClaimsPrincipal user;
+    private string nombreUsuario;
+    private string rol;
+    private int? unidadId;
+
+    public HistorialAccionesControlador historialAccionesControlador = new HistorialAccionesControlador();
+    public HistorialAcciones historialAcciones = new HistorialAcciones
+    {
+
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            nombreUsuario = user.Identity.Name;
+            rol = user.FindFirst(ClaimTypes.Role)?.Value;
+            unidadId = int.TryParse(user.FindFirst("UnidadId")?.Value, out int result)
+     ? result
+     : (int?)null;
+
+
+        }
+        else
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+
+        historialAcciones.NombrePersona = nombreUsuario;
+
+        listaUnidades = await unidadControlador.ListarUnidades();
+
+        if (unidadId != null)
+        {
+            listaUnidades = listaUnidades.Where(u => u.UnidadID == unidadId).ToList();
+        }
+
+    }
+    private Badge badge = new Badge()
+    {
+            Unidad = new Unidad(),
+            Ocupado = false,
+            Justificacion = "",
+            Activo = true
+    };
+
+    // Lista de horas (de 7 a 20)
+    private List<string> horasDelDiaInicio = new()
+    {
+        "07:00",
+        "08:00",
+        "09:00",
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00",
+        "17:00"
+    };
+
+    private List<string> horasDelDiaCompletas = new()
+    {
+
+        "07:00",
+        "08:00",
+        "09:00",
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00",
+        "17:00",
+        "18:00"
+
+    };
+
+    private List<string> horasDelDiaFinal = new()
+    {
+    };
+
+
+    private async Task RegistrarBadge()
+    {  
+
+        badge.Horario = $"{horaInicio} {simboloRangoHoras} {horaFinal}";
+
+        for (int i = 1; i <= cantidadACrear; i++)
+        {
+
+            (exito, mensaje) = await badgeControlador.RegistrarBadge(badge);
+
+
+            if (!exito)
+            {
+                break;
+            }
+
+            //Establecer propiedades para historialAcciones de registrar
+            historialAcciones.Accion = "Registrar badge: " + badge.BadgeID;
+            historialAcciones.Fecha = DateTime.Now;
+
+            await historialAccionesControlador.RegistrarHistorialAcciones(historialAcciones);
+        }
+
+
+        if (exito)
+        {
+            mensajeExito = mensaje;
+            mensajeError = null;
+            await LimpiarFormulario();
+        }
+        else
+        {
+            mensajeExito = null;
+            mensajeError = mensaje;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnHorarioChanged(ChangeEventArgs e)
+    {
+        var horaInicioSeleccionada = e.Value?.ToString();
+
+        if (!string.IsNullOrEmpty(horaInicioSeleccionada))
+        {
+            horasDelDiaFinal = horasDelDiaCompletas
+                .Where(h => string.Compare(h, horaInicioSeleccionada) > 0)
+                .ToList();
+        }
+
+        horaFinal = horasDelDiaFinal.FirstOrDefault();
+
+        StateHasChanged();
+
+    }
+
+    private bool EsFormularioInvalido()
+    {
+        return string.IsNullOrEmpty(horaInicio) || string.IsNullOrEmpty(horaFinal) || cantidadACrear <= 0;
+    }
+
+    private async Task LimpiarFormulario()
+    {
+        horaInicio = "";
+        horaFinal = "";
+        cantidadACrear = 1;
+        badge.UnidadID = null;
+    }
+
+    private void CerrarModal()
+    {
+        mensajeExito = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+    private void CerrarModalError()
+    {
+        mensajeError = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+}

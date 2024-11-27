@@ -1,0 +1,381 @@
+﻿@page "/mostrar-horario/{id:int}"
+@using GestionAsistente.BlazorUI.Components.Layout
+@using GestionAsistente.BlazorUI.Controlador
+@using GestionAsistente.Entidades
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<h3>Mostrar Horarios por Estación de Trabajo</h3>
+<div class="d-flex justify-content-center align-items-center my-3">
+    <button class="btn btn-custom btn-lg px-4 py-2" data-bs-toggle="modal" data-bs-target="#ConfirmarEliminarOficina">
+        <i class="bi bi-trash-fill me-2"></i> Eliminar Horarios de la Oficina
+    </button>
+</div>
+
+<div class="accordion" id="accordionHorarios">
+    
+    @foreach (var estacion in horarioControlador.horariosAgrupados)
+    {
+        <div class="accordion" id="accordionExample">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading@(estacion.EstacionTrabajoID)">
+                    <button class="accordion-button custom-accordion-button" type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#collapse@(estacion.EstacionTrabajoID)"
+                            aria-expanded="true"
+                            aria-controls="collapse@(estacion.EstacionTrabajoID)">
+                        Estacion Trabajo: Numero: @(estacion.Numero)
+                    </button>
+                </h2>
+               
+        
+        @foreach (var horario in horarioControlador.renderizarHorario)
+        {
+                     
+            @if ( estacion.EstacionTrabajoID==horario.EstacionTrabajoID)
+                    {
+                        horarioControlador.horarioTemporal.Add(horario);
+                    }
+                }
+                        <div id="collapse@(estacion.EstacionTrabajoID)"
+                     class="accordion-collapse collapse"
+                     aria-labelledby="heading@(estacion.EstacionTrabajoID)"
+                     data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#ConfirmarEliminar"
+                                @onclick="@(async () => await SeleccionarIdEstacionTrabajo(estacion.EstacionTrabajoID))"
+                                aria-label="Limpiar Horario de Estación @estacion.EstacionTrabajoID">
+                            Limpiar Horario
+                        </button>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th scope="col" class="text-center">Hora</th>
+                                                @foreach (var day in horarioControlador.diasDeLaSemana)
+                                                {
+                                                    <th scope="col" class="text-center">@day</th>
+                                                }
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var hour in horarioControlador.horasFijas)
+                                            {
+                                                <tr>
+                                                    <th scope="row" class="table-light text-center">@hour</th>
+                                                    @foreach (var dia in horarioControlador.diasDeLaSemana)
+                                                    {
+                                                <td style="min-width: 50px; height: 30px;" class="@GetCellClass(hour, dia, horarioControlador.horarioTemporal)">
+                                                    @if (HasReservation(hour, dia, horarioControlador.horarioTemporal))
+                                                    {
+                                                        var horarioD = GetHorario(hour, dia, horarioControlador.horarioTemporal);
+                                                        if (horarioD != null)
+                                                        {
+                                                            <div class="reservation-info">
+                                                                <p> <strong>@(horarioD.Asistente?.Persona?.Nombre + " " + horarioD.Asistente?.Persona?.PrimerApellido + " " + 
+                                                                    horarioD.Asistente?.Persona?.SegundoApellido ?? "Sin asignar")</strong> </p>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </td>
+
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                    </div>
+                </div>
+               
+         
+            </div>
+        </div>
+        horarioControlador.horarioTemporal.Clear();
+    }
+</div>
+<div class="modal fade" id="ConfirmarEliminar" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header text-center">
+                <h5 class="modal-title" id="ConfirmarEliminar">¿Eliminar Horario?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="fs-5">Esta acción no se puede deshacer.</p>
+                <p class="text-danger">¿Estás seguro de que desea eliminar este horario?</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button class="btn btn-primary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button class="btn btn-danger" data-bs-dismiss="modal" @onclick="() => limpiarHararioEstacion(horarioControlador.estacionTrabajoIDEliminar)">
+
+                    Confirmar
+                </button>
+
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="ConfirmarEliminarOficina" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header text-center">
+                <h5 class="modal-title" id="ConfirmarEliminar">¿Eliminar Todos los Horario?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="fs-5">Esta acción no se puede deshacer.</p>
+                <p class="text-danger">¿Estás seguro de que desea eliminar TODOS los horarios?</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button class="btn btn-primary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button class="btn btn-danger" data-bs-dismiss="modal" @onclick="() => limpiarHorarioOficina()">
+
+                    Confirmar
+                </button>
+
+            </div>
+        </div>
+    </div>
+</div>
+@if (mensajeExito != null)
+{
+    <div id="ModalsConfirmacion" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación</h5>
+                    <button type="button" class="close" @onclick="CerrarModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeExito</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@if (mensajeError != null)
+{
+    <div id="ModalError" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+                    <button type="button" class="close" @onclick="CerrarModalError" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeError</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModalError">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+<div style="margin-bottom: 20px;"></div>
+
+<style>
+    .reserved {
+        background-color: #e3f2fd;
+    }
+
+    .reservation-info {
+        font-size: 0.8em;
+        padding: 2px;
+    }
+
+
+
+    .accordion-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+        .table th, .table td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            text-align: center;
+        }
+
+        .table th {
+            background-color: #f2f2f2;
+
+        }
+
+    .reserved {
+        background-color: #e3f2fd;
+        color: #007bff;
+    }
+
+    .reservation-info {
+        font-size: 0.8em;
+        padding: 2px;
+        text-align: center;
+    }
+
+    .btn-custom {
+        background-color: #f8d7da; /* Rojo claro */
+        color: #721c24; /* Texto rojo oscuro */
+        border: none; /* Sin borde */
+        transition: background-color 0.3s ease, color 0.3s ease; /* Suaviza los cambios */
+    }
+
+        /* Fondo rojo intenso en hover */
+        .btn-custom:hover {
+            background-color: #dc3545; /* Rojo intenso */
+            color: #fff; /* Texto blanco */
+        }
+
+
+
+ 
+        /* Hover: Fondo azul intenso y texto blanco */
+        .custom-accordion-button:hover {
+            background-color: #0c63e4; /* Azul intenso */
+            color: #fff; /* Texto blanco */
+        }
+
+      
+
+    #accordionHorarios {
+       padding-bottom: 4rem; /* Espacio debajo del acordeón */
+    }
+
+ 
+
+</style>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private string mensajeExito, mensajeError;
+     private ClaimsPrincipal user;
+    private string nombreUsuario;
+    private string rol;
+    private int? unidadId;
+
+    public HorarioControlador horarioControlador = new HorarioControlador();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            nombreUsuario = user.Identity.Name;
+            rol = user.FindFirst(ClaimTypes.Role)?.Value;
+            unidadId = int.TryParse(user.FindFirst("UnidadId")?.Value, out int result)
+     ? result
+     : (int?)null;
+
+
+        }
+        else
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        await horarioControlador.ListarHorariosPorOficinaAgrupados(id);
+    }
+
+    private string GetCellClass(string hour, string dia, List<Horario> horarios)
+    {
+        return HasReservation(hour, dia, horarios) ? "reserved" : "";
+    }
+
+    private bool HasReservation(string hour, string dia, List<Horario> horarios)
+    {
+        if (horarios == null) return false;
+
+        var hourTime = TimeSpan.Parse(hour);
+        return horarios.Any(h =>
+            h.Dia == dia &&
+            h.HoraInicio.TimeOfDay <= hourTime &&
+            h.HoraFin.TimeOfDay >= hourTime);
+    }
+
+    private Horario GetHorario(string hour, string dia, List<Horario> horarios)
+    {
+        if (horarios == null) return null;
+
+        var hourTime = TimeSpan.Parse(hour);
+        return horarios.FirstOrDefault(h =>
+            h.Dia == dia &&
+            h.HoraInicio.TimeOfDay <= hourTime &&
+            h.HoraFin.TimeOfDay >= hourTime);
+    }
+    private async Task SeleccionarIdEstacionTrabajo(int id)
+    {
+        horarioControlador.estacionTrabajoIDEliminar = id;
+    }
+    private async Task limpiarHararioEstacion(int estacionTrabajoID)
+    {
+
+        // Espera a que termine la operación de limpieza
+        var resultado = await this.horarioControlador.limpiarHararioEstacion(estacionTrabajoID);
+        if (resultado)
+        {
+            mensajeExito = "Horario eliminado con éxito.";
+            mensajeError = null;
+            // Solo si la limpieza fue exitosa, actualiza la lista
+            await horarioControlador.ListarHorariosPorOficinaAgrupados(id);
+           
+        } else
+        {
+            mensajeError = "Error al eliminar horario.";
+            mensajeExito = null;
+        }
+        StateHasChanged();
+    }
+    private async Task limpiarHorarioOficina()
+    {
+        var resultado = await horarioControlador.limpiarHararioOficina(id);
+        if (resultado)
+        {
+            mensajeExito = "Horarios eliminados con éxito.";
+            mensajeError = null;
+            await horarioControlador.ListarHorariosPorOficinaAgrupados(id);
+            
+        }
+        else
+        {
+            mensajeError = "Error al eliminar horario.";
+            mensajeExito = null;
+        }
+        StateHasChanged();
+    }
+    private void CerrarModal()
+    {
+        mensajeExito = null;
+        mensajeError = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+    private void CerrarModalError()
+    {
+        mensajeError = null;
+        mensajeExito = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+}

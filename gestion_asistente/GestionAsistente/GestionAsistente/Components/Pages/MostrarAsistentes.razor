@@ -1,0 +1,891 @@
+﻿@page "/mostrar-asistentes"
+@using GestionAsistente.BlazorUI.Components.Layout
+@using GestionAsistente.BlazorUI.Controlador
+@using GestionAsistente.Entidades
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@layout LayoutPrincipal
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+
+<h2 class="mb-4">Mostrar Asistentes</h2>
+<div class="col-md-12 col-xs-12 col-sm-12" style="text-align: center; overflow-y: auto; top: 0px; left: 0px;">
+    <div class="table-responsive col-md-12 col-xs-12 col-sm-12" style="text-align: center; overflow-y: auto;">
+        <table class="table table-bordered table-striped">
+            <thead>              
+                <tr>
+                    <th>Opciones</th>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Contraseña</th>
+                    <th>Encargado</th>
+                    <th>Accesos</th>
+                    <th>Badge</th>
+                    <th>Unidad</th>
+                    <th>Horario</th>
+                    <th>Quitar horarios</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr> 
+                    <th></th>
+                    <th></th>
+                    <th>
+                        <input type="search" @bind="asistenteABuscar" @oninput="BusquedaAsincrona" placeholder="Buscar por nombre" style="width: 80%; text-align:center" />
+                    </th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+
+                @if (string.IsNullOrEmpty(asistenteABuscar))
+                {
+
+                    @if (listaAsistentes == null || !listaAsistentes.Any())
+                    {
+                        <tr>
+                            <td colspan="8">No se encontraron asistentes.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var asistente in listaAsistentes)
+                        {
+                            <tr>
+                                <td>
+                                    <button class="btn" data-bs-toggle="modal" data-bs-target="#ActualizarAsistente" @onclick="() => PrepararActualizacion(asistente.AsistenteID)">
+                                        <!-- Icono SVG para editar -->
+                                        <svg width="16" height="16" fill="currentColor" class="bi bi-pen" viewBox="0 0 16 16">
+                                            <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
+                                        </svg>
+                                    </button>
+                                    <button class="btn" data-bs-toggle="modal" data-bs-target="#ConfirmarEliminar" @onclick="() => EliminarAsistente(asistente.AsistenteID)">
+                                        <!-- Icono SVG para eliminar -->
+                                        <svg width="16" height="16" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
+                                            <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5" />
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td>@asistente.nombreUsuario</td>
+                                <td>@($"{asistente.Persona?.Nombre} {asistente.Persona?.PrimerApellido} {asistente.Persona?.SegundoApellido}")</td>
+                                <td>@asistente.Contrasenia</td>
+                                <td>@($"{asistente.Encargado?.Persona.Nombre} {asistente.Encargado?.Persona.PrimerApellido} {asistente.Encargado?.Persona.SegundoApellido}")</td>
+                                <td>@asistente.Accesos</td>
+                                <td>@asistente.BadgeID</td>
+                                <td>@asistente.Unidad?.Nombre</td>
+                                <td>
+                                    <button class="btn" data-bs-toggle="modal" data-bs-target="#horario" @onclick="() => traerOficinas(asistente.AsistenteID)">
+
+                                        <span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stopwatch" viewBox="0 0 16 16">
+                                                <path d="M8.5 5.6a.5.5 0 1 0-1 0v2.9h-3a.5.5 0 0 0 0 1H8a.5.5 0 0 0 .5-.5z" />
+                                                <path d="M6.5 1A.5.5 0 0 1 7 .5h2a.5.5 0 0 1 0 1v.57c1.36.196 2.594.78 3.584 1.64l.012-.013.354-.354-.354-.353a.5.5 0 0 1 .707-.708l1.414 1.415a.5.5 0 1 1-.707.707l-.353-.354-.354.354-.013.012A7 7 0 1 1 7 2.071V1.5a.5.5 0 0 1-.5-.5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3" />
+                                            </svg>
+                                        </span>
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn" data-bs-toggle="modal" data-bs-target="#quitarHorario" @onclick="() => limpiarHorario(asistente.AsistenteID)">
+
+                                        <span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eraser" viewBox="0 0 16 16">
+                                                <path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828zm2.121.707a1 1 0 0 0-1.414 0L4.16 7.547l5.293 5.293 4.633-4.633a1 1 0 0 0 0-1.414zM8.746 13.547 3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293z" />
+                                            </svg>
+                                        </span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+
+                }else if (asistenteABuscar != null && asistentesEncontrados.Any())
+                {
+                    @foreach (var asistente in asistentesEncontrados)
+                    {
+                        <tr>
+                            <td>
+
+                                <button @onclick="() => EliminarAsistente(asistente.AsistenteID)">Eliminar</button>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#ActualizarAsistente" @onclick="() => PrepararActualizacion(asistente.AsistenteID)">
+                                    Actualizar
+                                </button>
+                            </td>
+                            <td>@asistente.nombreUsuario</td>
+                            <td>@($"{asistente.Persona?.Nombre} {asistente.Persona?.PrimerApellido} {asistente.Persona?.SegundoApellido}")</td>
+                            <td>@asistente.Contrasenia</td>
+                            <td>@($"{asistente.Encargado?.Persona.Nombre} {asistente.Encargado?.Persona.PrimerApellido} {asistente.Encargado?.Persona.SegundoApellido}")</td>
+                            <td>@asistente.Accesos</td>
+                            <td>@asistente.BadgeID</td>
+                            <td>@asistente.Unidad?.Nombre</td>
+                            <td>
+                                <button class="btn" data-bs-toggle="modal" data-bs-target="#horario" @onclick="() => traerOficinas(asistente.AsistenteID)">
+
+                                    <span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stopwatch" viewBox="0 0 16 16">
+                                            <path d="M8.5 5.6a.5.5 0 1 0-1 0v2.9h-3a.5.5 0 0 0 0 1H8a.5.5 0 0 0 .5-.5z" />
+                                            <path d="M6.5 1A.5.5 0 0 1 7 .5h2a.5.5 0 0 1 0 1v.57c1.36.196 2.594.78 3.584 1.64l.012-.013.354-.354-.354-.353a.5.5 0 0 1 .707-.708l1.414 1.415a.5.5 0 1 1-.707.707l-.353-.354-.354.354-.013.012A7 7 0 1 1 7 2.071V1.5a.5.5 0 0 1-.5-.5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3" />
+                                        </svg>
+                                    </span>
+                                </button>
+                            </td>
+                            <td>
+                                <button class="btn" data-bs-toggle="modal" data-bs-target="#quitarHorario" @onclick="() => limpiarHorario(asistente.AsistenteID)">
+
+                                    <span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eraser" viewBox="0 0 16 16">
+                                            <path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828zm2.121.707a1 1 0 0 0-1.414 0L4.16 7.547l5.293 5.293 4.633-4.633a1 1 0 0 0 0-1.414zM8.746 13.547 3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293z" />
+                                        </svg>
+                                    </span>
+                                </button>
+                            </td>
+                        </tr>
+                    }                  
+
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-3 text-center custom-margin" style="padding-bottom: 5em;">
+    <button @onclick="() => CambiarPagina(currentPage - 1)"
+            class="btn btn-secondary"
+            disabled="@(totalItems == 0 || currentPage == 1)">
+        Anterior
+    </button>
+    <span class="mx-2">
+        Página @((totalItems == 0) ? 0 : currentPage) de @((totalItems == 0) ? 0 : totalPages)
+    </span>
+    <button @onclick="() => CambiarPagina(currentPage + 1)"
+            class="btn btn-secondary"
+            disabled="@(totalItems == 0 || currentPage == totalPages)">
+        Siguiente
+    </button>
+</div>
+
+<div class="modal fade" id="ActualizarAsistente" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ActualizarAsistente">Actualizar Asistente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="asistente" FormName="actualizarAsistenteForm">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+                    <div class="row">
+                        <!-- Columna 1 -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="usuario" class="form-label">Usuario</label>
+                                <InputText id="usuario" class="form-control" @bind-Value="asistente.nombreUsuario" />
+                                @if (string.IsNullOrWhiteSpace(asistente.nombreUsuario))
+                                {
+                                    <p class="text-danger">Este campo es obligatorio y solo debe tener letras.</p>
+                                }
+                                @if (!string.IsNullOrEmpty(asistente.nombreUsuario) && !System.Text.RegularExpressions.Regex.IsMatch(asistente.nombreUsuario, @"^[a-zA-Z]+$"))
+                                {
+                                    <p class="text-danger">El usuario solo puede contener letras.</p>
+                                }
+                            </div>
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">Nombre</label>
+                                <InputText id="nombre" class="form-control" @bind-Value="asistente.Persona.Nombre" />
+                                @if (string.IsNullOrWhiteSpace(asistente.Persona.Nombre))
+                                {
+                                    <p class="text-danger">Este campo es obligatorio.</p>
+                                }
+                            </div>
+                            <div class="mb-3">
+                                <label for="primerApellido" class="form-label">Primer Apellido</label>
+                                <InputText id="primerApellido" class="form-control" @bind-Value="asistente.Persona.PrimerApellido" />
+                                @if (string.IsNullOrWhiteSpace(asistente.Persona.PrimerApellido))
+                                {
+                                    <p class="text-danger">Este campo es obligatorio.</p>
+                                }
+                            </div>
+                            <div class="mb-3">
+                                <label for="segundoApellido" class="form-label">Segundo Apellido</label>
+                                <InputText id="segundoApellido" class="form-control" @bind-Value="asistente.Persona.SegundoApellido" />
+                                @if (string.IsNullOrWhiteSpace(asistente.Persona.SegundoApellido))
+                                {
+                                    <p class="text-danger">Este campo es obligatorio.</p>
+                                }
+                            </div>
+                            <div class="mb-3">
+                                <label for="contrasenia" class="form-label">Contraseña</label>
+                                <InputText id="contrasenia" class="form-control" @bind-Value="asistente.Contrasenia" />
+                                @if (string.IsNullOrWhiteSpace(asistente.Contrasenia))
+                                {
+                                    <p class="text-danger">Este campo es obligatorio.</p>
+                                }
+                            </div>
+                        </div>
+                        <!-- Columna 2 -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="accesos" class="form-label">Accesos</label>
+                                <InputTextArea id="accesos" class="form-control" @bind-Value="asistente.Accesos" />
+                                @if (string.IsNullOrWhiteSpace(asistente.Accesos))
+                                {
+                                    <p class="text-danger">Este campo es obligatorio.</p>
+                                }
+                            </div>
+                            <div class="mb-3">
+                                <label for="unidadID" class="form-label">Unidad</label>
+                                <InputSelect id="unidadID" class="form-control" @bind-Value="asistente.UnidadID" @oninput="OnUnidadChanged">
+                                    <option value="">-- Seleccione una unidad --</option>
+                                    @foreach (var unidad in listaUnidades)
+                                    {
+                                        <option value="@unidad.UnidadID">@unidad.Nombre</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label for="encargadoID" class="form-label">Encargado</label>
+                                <InputSelect id="encargadoID" class="form-control" @bind-Value="asistente.EncargadoID">
+                                    <option value="">-- Seleccione un encargado --</option>
+                                    @foreach (var encargado in listaEncargados)
+                                    {
+                                        <option value="@encargado.EncargadoID">@($"{encargado?.Persona.Nombre} {encargado?.Persona.PrimerApellido} {encargado?.Persona.SegundoApellido}")</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label for="BadgeID">Badge</label>
+                                <InputSelect id="BadgeID" class="form-control" @bind-Value="asistente.BadgeID">
+                                    <option value="">-- Seleccione el badge --</option>
+                                    @foreach (var badge in listaBadge)
+                                    {
+                                        <option value="@badge.BadgeID">@badge.BadgeID</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" class="btn btn-primary me-2" data-bs-dismiss="modal" @onclick="ActualizarAsistente">Guardar Cambios</button>
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="horario" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="horario">Actualizar Asistente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body row">
+                <div class="col-md-6">
+                    <label for="Oficina">Oficina</label>
+                    <InputSelect id="OficinaID" class="form-select" @bind-Value="oficinaID" @oninput="OnEstacionChanged">
+                        <option value="">Seleccione la oficina</option>
+                        @foreach (var oficina in listaOficinas)
+                        {
+                            <option value="@oficina.OficinaID">@($"{oficina.Nombre}")</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-6">
+                    <label for="EstacionTrabajo">EstacionTrabajo</label>
+                    <InputSelect id="EstacionTrabajo" class="form-select" @bind-Value="horario.EstacionTrabajoID">
+                        <option value="">Seleccione la estación de trabajo</option>
+                        @foreach (var estacionTrabajo in listaEstacionTrabajos)
+                        {
+                            <option value="@estacionTrabajo.EstacionTrabajoID">@($"{estacionTrabajo.Numero}")</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="card-body">
+                    <div class="row">
+                        <div class="card mt-4 col-md-6">
+                            <label for="diaSemana">Día</label>
+                            <InputSelect id="diaSemana" class="form-select" @bind-Value="horario.Dia" @oninput="OnEstacionHorarioChanged">
+                                <option value="">Seleccione el dia de la semana</option>
+                                @foreach (var dia in horarioControlador.diasDeLaSemana)
+                                {
+                                    <option value="@dia">@dia</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="card mt-4 col-md-6">
+                            <label for="horaInicio">Hora de Inicio</label>
+                            <InputSelect id="horaInicio" class="form-select" @bind-Value="horaInicio" @oninput="OnEstacionHoraFinalChanged">
+                                <option value="">Seleccione la hora de inicio</option>
+                                @foreach (var hora in horarioControlador.horasDelDiaInicio)
+                                {
+                                    <option value="@hora">@hora</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="card mt-4 col-md-6">
+                            <label for="horaFinal">Hora de Final</label>
+                            <InputSelect id="horaFinal" class="form-select" @bind-Value="horaFinal">
+                                <option value="">Seleccione la hora de finalización</option>
+                                @foreach (var hora in horarioControlador.horasDelDiaFinal)
+                                {
+                                    <option value="@hora">@hora</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary" data-bs-dismiss="modal" @onclick="GuardarHorarioAsistente">Guardar horario</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@if (mensajeHorario != null)
+{
+    <div id="HorarioLimpio" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación</h5>
+                    <button type="button" class="close" @onclick="CerrarModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeHorario</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" data-bs-dismiss="modal" @onclick="CerrarModalHorario">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+} 
+@if (mostrarError)
+{
+    <div class="invalid-feedback">
+        @notificarUsuario
+    </div>
+} else if (notificarUsuario !=null)
+{
+    <div class="invalid-feedback">
+        @notificarUsuario
+    </div>
+}
+
+@if (notificarEliminacion != null)
+{
+    <div id="ModalsConfirmacion" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación</h5>
+                    <button type="button" class="close" @onclick="CerrarModalEliminacion" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@notificarEliminacion</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModalEliminacion">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (notificarActualizacion != null)
+{
+    <div id="ModalsConfirmacion" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación</h5>
+                    <button type="button" class="close" @onclick="CerrarModalActualizar" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@notificarActualizacion</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModalActualizar">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private bool mostrarError = false;
+
+    private void ValidarCampo()
+    {
+        mostrarError = string.IsNullOrEmpty(asistente.nombreUsuario);
+        StateHasChanged();
+    }
+    private bool actualizado;
+    private string notificarUsuario;
+    private bool horarioLimpio;
+    private string mensajeHorario;
+    private string notificarEliminacion;
+    private string notificarActualizacion;
+    private bool unidadCambiada = false;
+    private ReporteControlador reporteControlador = new ReporteControlador();
+    private ReporteBadge reporteBadge = new ReporteBadge();
+    private AsistenteControlador asistenteControlador = new AsistenteControlador();
+    private UnidadControlador unidadControlador = new UnidadControlador();
+    private EncargadoControlador encargadoControlador = new EncargadoControlador();
+    private OficinaControlador oficinaControlador = new OficinaControlador();
+    private EstacionTrabajoControlador estacionTrabajoControlador = new EstacionTrabajoControlador();
+    private HorarioControlador horarioControlador = new HorarioControlador();
+    private BadgeControlador badgeControlador = new BadgeControlador();
+    private List<Asistente> listaAsistentes = new List<Asistente>();
+    private List<Asistente> listaAsistentesFiltrados = new List<Asistente>();
+    private List<Unidad> listaUnidades = new List<Unidad>();
+    private List<Encargado> listaEncargados = new List<Encargado>();
+    private List<Oficina> listaOficinas = new List<Oficina>();
+    private List<Badge> listaBadge = new List<Badge>();
+    private List<EstacionTrabajo> listaEstacionTrabajos = new List<EstacionTrabajo>();
+    private string asistenteABuscar;
+    private List<Asistente> asistentesEncontrados = new List<Asistente>();
+    private HistorialAccionesControlador historialAccionesControlador = new HistorialAccionesControlador();
+    string horaInicio, horaFinal = "";
+    private int oficinaID;
+    private int estacionTrabajoID;
+    private string diaSeleccionado;
+    private string horaInicioSeleccionada;
+    private string horaFinalSeleccionada;
+    // Propiedades de paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalItems;
+    private int totalPages;
+    private ClaimsPrincipal user;
+    private string nombreUsuario;
+    private string rol;
+    private int? unidadId;
+    private Asistente asistente = new Asistente
+        {
+            Persona = new Persona(),
+            Encargado = new Encargado()
+            {
+                Persona = new Persona()
+            },
+            Unidad = new Unidad()
+
+        };
+    Asistente asistenteActualizado = new Asistente
+        {
+            Persona = new Persona(),
+            Encargado = new Encargado()
+            {
+                Persona = new Persona()
+            }
+        };
+    private Asistente asistenteTemporal = new Asistente
+    {
+        Persona = new Persona(),
+        Encargado = new Encargado()
+        {
+            Persona = new Persona()
+        }
+    };
+    private HistorialAcciones historialAcciones = new HistorialAcciones
+        {
+            NombrePersona = "UsuarioSesion"
+        };
+
+    private Horario horario = new Horario()
+        {
+            Asistente = new Asistente()
+            {
+                Persona = new Persona()
+            }
+        };
+
+
+    Badge badge = new Badge();
+    protected override async Task OnInitializedAsync()
+    {
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            nombreUsuario = user.Identity.Name;
+            rol = user.FindFirst(ClaimTypes.Role)?.Value;
+            unidadId = int.TryParse(user.FindFirst("UnidadId")?.Value, out int result)
+            ? result
+            : (int?)null;
+        }
+        else
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+
+        reporteBadge.NombreUsuario = nombreUsuario;
+
+        listaAsistentes = await asistenteControlador.ListarAsistentes();
+        if (unidadId != null && rol == "Usuario")
+        {
+            listaAsistentes = listaAsistentes.Where(a => a.UnidadID == unidadId).ToList();       
+        }
+
+        await CargarPagina();
+    }
+
+    private async Task GuardarHorarioAsistente()
+    {
+        horario.AsistenteID = asistente.AsistenteID;
+        horario.HoraInicio = DateTime.Parse(horaInicio);
+        horario.HoraFin = DateTime.Parse(horaFinal);
+        await horarioControlador.RegistrarHorario(horario);
+        LimpiarFormulario();
+    }
+    private void LimpiarFormulario()
+    {
+        listaEstacionTrabajos.Clear();
+        StateHasChanged();
+    }
+
+    private async Task PrepararActualizacion(int asistenteID)
+    {
+        List<Badge> badgeAsignado = new List<Badge>();
+        listaUnidades = await unidadControlador.ListarUnidades();
+        if (unidadId != null)
+        {
+            listaUnidades = listaUnidades.Where(a => a.UnidadID == unidadId).ToList();
+        }
+        asistenteActualizado = listaAsistentes.Find(a => a.AsistenteID == asistenteID);
+
+        asistente.AsistenteID = asistenteActualizado.AsistenteID;
+        asistente.nombreUsuario = asistenteActualizado.nombreUsuario;
+        asistente.Persona.Nombre = asistenteActualizado.Persona.Nombre;
+        asistente.Persona.PrimerApellido = asistenteActualizado.Persona.PrimerApellido;
+        asistente.Persona.SegundoApellido = asistenteActualizado.Persona.SegundoApellido;
+        asistente.Contrasenia = asistenteActualizado.Contrasenia;
+        asistente.EncargadoID = asistenteActualizado.EncargadoID;
+        asistente.Accesos = asistenteActualizado.Accesos;
+        asistente.BadgeID = asistenteActualizado.BadgeID;
+        asistente.UnidadID = asistenteActualizado.UnidadID;
+        asistente.Persona.PersonaID = asistenteActualizado.Persona.PersonaID;
+        asistente.Unidad = asistenteActualizado.Unidad;
+        asistente.BadgeID = asistenteActualizado.BadgeID;   
+        if (asistente.UnidadID != 0 || asistente.UnidadID != null)
+        {
+            listaEncargados = await encargadoControlador.ListarEncargadosPorID(asistente.UnidadID);
+            listaBadge= await badgeControlador.ListarBadgePorUnidad(asistente.UnidadID); 
+            badgeAsignado = await badgeControlador.ListarBadge();
+            badgeAsignado = badgeAsignado.Where(a => a.BadgeID == asistente.BadgeID).ToList();
+            badge = badgeAsignado.FirstOrDefault();      
+            CargarBadge(asistente.UnidadID, badge);
+        }
+    }
+    private async Task OnUnidadChanged(ChangeEventArgs e)
+    {
+        int numero = 0; // Valor predeterminado
+
+        if (!string.IsNullOrEmpty(e.Value.ToString()) && int.TryParse(e.Value.ToString(), out numero))
+        {
+            await CargarEncargados(numero);
+            await CargarBadge(numero, badge);
+        }
+        else
+        {
+            asistente.EncargadoID = null;
+            asistente.BadgeID = null;
+
+            listaEncargados = new List<Encargado>();
+            listaBadge = new List<Badge>();
+        }
+    }
+    private async Task CargarEncargados(int? unidadId)
+    {
+
+        if (unidadId != 0)
+        {
+            listaEncargados = await encargadoControlador.ListarEncargadosPorID(unidadId);
+        }
+        else
+        {
+            listaEncargados = new List<Encargado>();
+        }
+        StateHasChanged();
+    }
+    private async Task CargarBadge(int? unidadId,Badge? badge)
+    {
+        if (unidadId != 0)
+        {
+            listaBadge = await badgeControlador.ListarBadgePorUnidad(unidadId);
+            if (badge != null && badge.UnidadID == unidadId)
+            {
+                // Badge badgeAsignado = await badgeControlador.ObtenerBadgePorId(badgeID);
+                listaBadge.Insert(0, badge);
+                StateHasChanged();
+            }
+            else { 
+                asistente.EncargadoID = null;
+                asistente.BadgeID = null;
+            }        
+        }   
+    }
+
+    private async Task ReporteAsignacionEliminar()
+    {
+
+        if (asistenteTemporal.BadgeID != null)
+        {
+
+            reporteBadge.NumeroBadge = asistenteTemporal.BadgeID ?? -1;
+            //nombre completo
+            reporteBadge.NombreAsistente = asistenteTemporal.Persona.Nombre + " " + asistenteTemporal.Persona.PrimerApellido + " " + asistenteTemporal.Persona.SegundoApellido;
+            reporteBadge.Accion = "Eliminar asignación de tarjeta";
+            reporteBadge.NombreUsuario = nombreUsuario;
+            await reporteControlador.RegistrarReporte(reporteBadge);
+        }
+
+    }
+
+    private async Task EliminarAsistente(int asistenteID)
+    {
+        asistenteTemporal = listaAsistentes.Find(a => a.AsistenteID == asistenteID);
+
+        (bool eliminado, string mensaje) = await asistenteControlador.EliminarAsistente(asistenteID);
+
+        if (eliminado)
+        {
+            await ReporteAsignacionEliminar();
+            listaAsistentes = await asistenteControlador.ListarAsistentes();
+
+            //Establecer propiedades para historialAcciones de registrar
+            historialAcciones.Accion = "Eliminar asistente: " + asistente.Persona.Nombre + " " +
+            asistente.Persona.PrimerApellido + " " + asistente.Persona.SegundoApellido;
+            historialAcciones.Fecha = DateTime.Now;
+
+            await historialAccionesControlador.RegistrarHistorialAcciones(historialAcciones);
+
+            //cargar de nuevo la lista de asistentes
+            if (unidadId == null)
+            {
+                listaAsistentes = await asistenteControlador.ListarAsistentes();
+            }
+            else if (unidadId != null)
+            {
+                listaAsistentes = await asistenteControlador.ListarAsistentes();
+                listaAsistentes = listaAsistentes.Where(a => a.UnidadID == unidadId).ToList();
+            }
+
+            await CargarPagina();
+
+            StateHasChanged();
+            notificarEliminacion = mensaje; 
+        } else  
+        {
+            notificarEliminacion = mensaje; 
+        }
+    }
+
+    private async Task ReporteAsignacionActualizar()
+    {
+
+        if(asistenteTemporal.BadgeID != null)
+        {
+
+            reporteBadge.NumeroBadge = asistenteTemporal.BadgeID ?? -1;
+            //nombre completo
+            reporteBadge.NombreAsistente = asistenteTemporal.Persona.Nombre + " " + asistenteTemporal.Persona.PrimerApellido + " " + asistenteTemporal.Persona.SegundoApellido;
+            reporteBadge.Accion = "Eliminar asignación de tarjeta";
+            await reporteControlador.RegistrarReporte(reporteBadge);
+        }
+        if(asistente.BadgeID != null)
+        {
+            reporteBadge.NumeroBadge = asistente.BadgeID ?? -1;
+            //nombre completo
+            reporteBadge.NombreAsistente = asistente.Persona.Nombre + " " + asistente.Persona.PrimerApellido + " " + asistente.Persona.SegundoApellido;
+            reporteBadge.Accion = "Asignación de tarjeta";
+            await reporteControlador.RegistrarReporte(reporteBadge);
+        }
+    }
+
+    private async Task ActualizarAsistente()
+    {
+        if (asistente.UnidadID == 0 || asistente.UnidadID==null)
+        {
+            asistente.Unidad = null;
+            asistente.UnidadID = null;
+            asistente.Badge = null;
+            asistente.BadgeID = null;
+            asistente.Encargado = null;
+            asistente.EncargadoID = null;
+        }
+
+        asistenteTemporal = listaAsistentes.Find(a => a.AsistenteID == asistente.AsistenteID);
+
+        (actualizado, string mensaje) = await asistenteControlador.ActualizarAsistente(asistente);
+
+        if (actualizado)
+        {
+            await ReporteAsignacionActualizar();
+
+            //Establecer propiedades para historialAcciones de registrar
+            historialAcciones.Accion = "Actualizar asistente: " + asistente.Persona.Nombre + " " +
+            asistente.Persona.PrimerApellido + " " + asistente.Persona.SegundoApellido;
+            historialAcciones.Fecha = DateTime.Now;
+            historialAcciones.NombrePersona = nombreUsuario;
+            await historialAccionesControlador.RegistrarHistorialAcciones(historialAcciones);
+
+            notificarActualizacion = mensaje;
+            LimpiarFormulario();
+            CerrarModalActualizar();
+        }
+        else
+        {
+            notificarActualizacion = mensaje;
+        }
+
+        StateHasChanged();
+        await CargarPagina();
+    }
+
+    private bool puedeGuardar()
+    {
+        // No permitir guardar si la unidad ha cambiado y no se ha seleccionado un encargado
+        return !unidadCambiada || asistente.EncargadoID != 0;
+    }
+
+
+    private async void traerOficinas(int asistenteID)
+    {
+        horario.Asistente.AsistenteID = asistenteID;
+        listaOficinas = await oficinaControlador.ListarOficinas();
+    }
+
+    private async Task OnEstacionChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int oficinaid))
+        {
+            listaEstacionTrabajos = await estacionTrabajoControlador.ListarEstacionPorOficina(oficinaid);
+            StateHasChanged(); // Forzar la actualización de la UI
+        }
+    }
+    private async Task OnEstacionHorarioChanged(ChangeEventArgs e)
+    {
+        await horarioControlador.ListarHorariosPorEstacionTrabajo(horario.EstacionTrabajoID, e.Value.ToString());
+        StateHasChanged(); // Forzar la actualización de la UI
+
+    }
+    private async Task OnEstacionHoraFinalChanged(ChangeEventArgs e)
+    {
+        await horarioControlador.verificarHoraSeleccionar(e.Value.ToString());
+        StateHasChanged(); // Forzar la actualización de la UI
+    }
+
+
+    private async Task BusquedaAsincrona(ChangeEventArgs e)
+    {
+        var nombreABuscar = e.Value?.ToString();
+
+        if (!string.IsNullOrEmpty(nombreABuscar))
+        {
+            asistentesEncontrados = await asistenteControlador.BuscarAsistentePorNombre(nombreABuscar);
+
+            if (unidadId != null)
+            {
+                asistentesEncontrados = asistentesEncontrados.Where(a => a.UnidadID == unidadId).ToList();
+            }
+        }
+        else
+        {
+            asistentesEncontrados.Clear();
+        }
+    }
+
+    private async Task CargarPagina()
+    {
+        var allAsistentes = await asistenteControlador.ListarAsistentes();
+
+        if (unidadId!=null)       
+        {
+            allAsistentes = allAsistentes.Where(a => a.UnidadID == unidadId).ToList();
+        }           
+
+        totalItems = allAsistentes.Count;
+        totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+        listaAsistentes = allAsistentes
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+    }
+
+    private async Task CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina > 0 && nuevaPagina <= totalPages)
+        {
+            currentPage = nuevaPagina;
+            await CargarPagina();
+        }
+    }
+    private async Task limpiarHorario(int asistenteID)
+    {
+        horarioLimpio = await horarioControlador.limpiarHorarioAsistente(asistenteID);
+        if (horarioLimpio)
+        {
+            mensajeHorario = "Horario limpiado correctamente.";
+        }
+    }
+
+
+    private void CerrarModal()
+    {
+        notificarUsuario = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+    private void CerrarModalError()
+    {
+
+        notificarUsuario = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+    private void CerrarModalHorario()
+    {
+
+        mensajeHorario = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+    private void CerrarModalEliminacion()
+    {
+
+        notificarEliminacion = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+    private void CerrarModalActualizar()
+    {
+
+        notificarActualizacion = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+}

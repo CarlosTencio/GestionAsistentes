@@ -1,0 +1,54 @@
+﻿@page "/"
+@using System.ComponentModel.DataAnnotations
+@using GestionAsistente.BlazorUI.Components.Layout
+@using GestionAsistente.BlazorUI.Controlador
+@using GestionAsistente.Entidades
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Mvc
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+@layout LayoutMain
+
+
+@code {
+    //este logout funciona para que el login no se llame a su mismo sino que este logout lo invoca, 
+    // este logout sirve para que borre todo tipo de caché y cookies que tenga almacenadas,
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [Inject] 
+    private IAntiforgery Antiforgery { get; set; }
+
+    // En el método OnInitializedAsync
+    [IgnoreAntiforgeryToken]
+    protected override async Task OnInitializedAsync()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext != null)
+        {
+            // Cierra la sesión del usuario autenticado
+            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Regenera el token antiforgery de manera explícita
+            var tokens = Antiforgery.GetAndStoreTokens(httpContext);
+            
+            // Establece las cookies del token
+            httpContext.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken, new CookieOptions
+            {
+                HttpOnly = false,
+                Secure = true,
+                SameSite = SameSiteMode.Strict
+            });
+            
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+        else
+        {
+            throw new InvalidOperationException("No se pudo acceder al contexto HTTP.");
+        }
+    }
+
+}

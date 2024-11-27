@@ -1,0 +1,160 @@
+﻿@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using GestionAsistente.BlazorUI.Components.Layout
+@using GestionAsistente.BlazorUI.Controlador
+@using GestionAsistente.Entidades
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Mvc
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+@layout LayoutMain
+
+<PageTitle>Iniciar Sesión</PageTitle>
+<h3>Iniciar Sesión</h3>
+<div class="row d-flex justify-content-center align-items-center">
+    <div class="col-md-4 ">
+        <h3 style="text-align:center">Bienvenido</h3>
+        <section class="justify-content-center" style="margin-bottom: 1em; background-color:none; padding: 0; ">
+            <!-- Mensaje de error general -->
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <EditForm Model="Input" OnValidSubmit="LoginUser" FormName="login2">
+                <DataAnnotationsValidator />
+
+
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="Input.Username" class="form-control" autocomplete="username" aria-required="true" placeholder="Usuario" />
+                    <label style="max-height: 1em;" for="username" class="form-label">Usuario</label>
+                    <ValidationMessage For="() => Input.Username" class="text-danger" />
+                </div>
+
+                <div class="form-floating mb-3">
+                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Contraseña" />
+                    <label for="password" class="form-label">Contraseña</label>
+                    <ValidationMessage For="() => Input.Password" class="text-danger" />
+                </div>
+
+
+
+                <div style="text-align:center">
+                    <button type="submit" class="w-40 h-20 btn btn-primary">Iniciar Sesión</button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+</div>
+<!-- Añade este fragmento en tu HTML para incluir el token -->
+@if (HttpContextAccessor.HttpContext != null)
+{
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContextAccessor.HttpContext);
+    <input type="hidden" name="__RequestVerificationToken" value="@tokens.RequestToken" />
+}
+@code {
+    private string? errorMessage;
+    private UsuarioControlador usuarioControlador = new UsuarioControlador();
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+
+
+    [Inject]
+    private IAntiforgery Antiforgery { get; set; }
+
+    // En el método OnInitializedAsync
+    [IgnoreAntiforgeryToken]
+    protected override async Task OnInitializedAsync()
+    {
+       
+    }
+    [IgnoreAntiforgeryToken]
+    public async Task LoginUser()
+    {
+        // Validación manual del token antiforgery
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext != null)
+        {
+            try
+            {
+                // Valida manualmente el token
+                await Antiforgery.ValidateRequestAsync(httpContext);
+            }
+            catch (Exception)
+            {
+                errorMessage = "Error de validación de token de seguridad.";
+                return;
+            }
+            Usuario usuario = new Usuario();
+            usuario.NombreUsuario = Input.Username;
+            usuario.Contrasenia = Input.Password;
+            Usuario usuarioLogin = new Usuario
+                {
+                    Rol = new Rol(),
+                };
+            usuarioLogin = await usuarioControlador.VerificarContrasenia(usuario);
+            if (usuarioLogin == null)
+            {
+                errorMessage = "Usuario o contraseña incorrectos.";
+                return;
+            }
+            else
+            {
+
+                if (httpContext != null)
+                {
+                    var claims = new List<Claim>
+                        {
+                            new Claim(ClaimTypes.Name, usuarioLogin.NombreUsuario),
+                            new Claim(ClaimTypes.Role, usuarioLogin.Rol.Nombre),
+                            new Claim("UnidadId", usuarioLogin.UnidadID.ToString())
+                        };
+
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties
+                        {
+                            IsPersistent = true,
+                            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1)
+                        };
+
+                    await httpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity),
+                        authProperties);
+                }
+                else
+                {
+                    throw new InvalidOperationException("No se pudo acceder al contexto HTTP.");
+                }
+
+
+                Navigation.NavigateTo("/home");
+            }
+
+
+
+        }
+    }
+
+
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Por favor, ingrese su nombre de usuario.")]
+        public string Username { get; set; } = "";
+
+        [Required(ErrorMessage = "Por favor, ingrese su contraseña.")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "¿Recordarme?")]
+        public bool RememberMe { get; set; }
+    }
+}

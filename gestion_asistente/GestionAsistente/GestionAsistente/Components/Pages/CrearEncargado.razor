@@ -1,0 +1,184 @@
+﻿@page "/crear-encargado"
+@using GestionAsistente.BlazorUI.Controlador
+@using GestionAsistente.Entidades
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<h3 style="text-align: center;" >Crear Encargado</h3>
+
+<div class="row justify-content-center">
+    <div class="col-md-4">
+<EditForm Model="encargadoControlador.encargado" OnValidSubmit="RegistrarEncargado" FormName="crearEncargadoForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+            <hr />
+            <div class="form-floating mb-3">
+        <InputText id="nombre" class="form-control" @bind-Value="encargadoControlador.encargado.Persona.Nombre" placeholder="Nombre" aria-required="true"  />
+                <label for="nombre">Nombre</label>
+    </div>
+
+            <div class="form-floating mb-3">
+                <InputText id="primerApellido" class="form-control" @bind-Value="encargadoControlador.encargado.Persona.PrimerApellido" placeholder="Primer Apellido" aria-required="true" />
+                <label for="primerApellido">Primer Apellido</label>
+    </div>
+
+            <div class="form-floating mb-3">
+                <InputText id="segundoApellido" class="form-control" @bind-Value="encargadoControlador.encargado.Persona.SegundoApellido" placeholder="Segundo Apellido" aria-required="true" />
+                <label for="segundoApellido">Segundo Apellido</label>
+    </div>
+
+    <div class="mb-3">
+        <label for="unidadID" class="form-label">Unidad</label>
+        <InputSelect id="unidadID" class="form-control" @bind-Value="encargadoControlador.encargado.Unidad.UnidadID">
+            <option value="">Seleccione una unidad</option>
+            @foreach (var unidad in encargadoControlador.listaUnidades)
+            {
+                <option value="@unidad.UnidadID">@unidad.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div style="text-align:center">
+    <button type="submit" class="btn btn-primary">Registrar</button>
+            </div>
+</EditForm>
+    </div>
+
+@if (mensajeExito != null)
+{
+    <div id="ModalsConfirmacion" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación</h5>
+                    <button type="button" class="close" @onclick="CerrarModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeExito</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mensajeError != null)
+{
+    <div id="ModalError" class="modal fade show d-sm-inline-block" tabindex="-1" role="dialog" style="display: block;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+                    <button type="button" class="close" @onclick="CerrarModalError" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeError</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary btnAceptar" @onclick="CerrarModalError">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+</div>
+
+@code {
+    public EncargadoControlador encargadoControlador = new EncargadoControlador();
+    private string mensajeExito, mensajeError;
+    private string? userName="defecto";
+    private int? unidad;
+    private ClaimsPrincipal user;
+    private string nombreUsuario;
+    private string rol;
+    private int? unidadId;
+    public HistorialAccionesControlador historialAccionesControlador = new HistorialAccionesControlador();
+    public HistorialAcciones historialAcciones = new HistorialAcciones();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            nombreUsuario = user.Identity.Name;
+            rol = user.FindFirst(ClaimTypes.Role)?.Value;
+            unidadId = int.TryParse(user.FindFirst("UnidadId")?.Value, out int result)
+     ? result
+     : (int?)null;
+
+
+        }
+        else
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+       
+        encargadoControlador.unidad = unidadId;
+        encargadoControlador.listarUnidades();
+    }
+
+    private async Task RegistrarEncargado()
+    {
+
+        (string mensaje, bool esExitoso) = await encargadoControlador.registrarEncargado(encargadoControlador.encargado);
+        if (esExitoso)
+        {
+            mensajeExito = "Asistente registrado con éxito.";
+            mensajeError = null;
+          
+            StateHasChanged();
+
+            //Establecer propiedades para historialAcciones de registrar
+            historialAcciones.NombrePersona = nombreUsuario;
+            historialAcciones.Accion = "Registrar encargado: " + encargadoControlador.encargado.Persona.Nombre + " " +
+            encargadoControlador.encargado.Persona.PrimerApellido + " " + encargadoControlador.encargado.Persona.SegundoApellido;
+            historialAcciones.Fecha = DateTime.Now;
+
+            await historialAccionesControlador.RegistrarHistorialAcciones(historialAcciones);
+            LimpiarFormulario();
+        }
+        else
+        {
+
+            mensajeExito = null;
+            mensajeError = mensaje;
+
+        }
+
+    }
+
+    private void LimpiarFormulario()
+    {
+        encargadoControlador.encargado.Persona.Nombre = "";
+        encargadoControlador.encargado.Persona.PrimerApellido = "";
+        encargadoControlador.encargado.Persona.SegundoApellido = "";
+        encargadoControlador.encargado.Unidad.UnidadID = 0;
+    }
+
+    private void CerrarModal()
+    {
+        mensajeExito = null;
+        mensajeError = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+
+    private void CerrarModalError()
+    {
+        mensajeError = null;
+        mensajeExito = null;
+        StateHasChanged(); // Actualiza el estado para ocultar el modal en la interfaz
+    }
+  
+
+}

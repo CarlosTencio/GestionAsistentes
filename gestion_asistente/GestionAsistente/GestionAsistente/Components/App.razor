@@ -1,0 +1,33 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="estilos/EstiloGeneral.css" />
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.css" />
+    <script src="/bootstrap/js/bootstrap.bundle.js"> </script>
+    <script src="/bootstrap/js/popper.js"> </script>
+
+
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+
+
+</head>
+
+<body>
+
+
+    <Routes />
+    <div id="connectionStatus"></div>
+    <script src="_framework/blazor.web.js"></script>
+    <!-- Mensaje de alerta de conexión -->
+    <div id="connectionAlert" class="alert alert-danger" style="display: none;">
+        <strong>¡Atención!</strong> No hay conexión a Internet.
+    </div>
+    <script src="/Conexion.js"></script>
+</body>
+
+</html>
